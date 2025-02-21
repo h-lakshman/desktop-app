@@ -24,7 +24,7 @@ struct ActivityRecord {
 }
 
 struct ActivityMonitor {
-    iis_monitoring: Arc<AtomicBool>,
+    is_monitoring: Arc<AtomicBool>,
     csv_writer: Arc<Mutex<Writer<std::fs::File>>>,
     events_recorded: Arc<AtomicBool>,
     status_text: Arc<Mutex<String>>,
@@ -76,7 +76,7 @@ impl ActivityMonitor {
         if let Ok(mut status) = self.status_text.lock() {
             *status = "Started monitoring...".to_string();
         }
-
+        
         self.is_monitoring.store(true, Ordering::SeqCst);
         let is_monitoring = Arc::clone(&self.is_monitoring);
         let csv_writer = Arc::clone(&self.csv_writer);
@@ -113,9 +113,7 @@ impl ActivityMonitor {
                                 *status = format!("Keyboard: {}", keys_str);
                             }
                         }
-                        writer
-                            .flush()
-                            .unwrap_or_else(|e| eprintln!("Error flushing: {}", e));
+                        writer.flush().unwrap_or_else(|e| eprintln!("Error flushing: {}", e));
                     }
                     last_keys = keys;
                 }
@@ -143,16 +141,14 @@ impl ActivityMonitor {
                                 *status = format!("Mouse: ({}, {})", current_pos.0, current_pos.1);
                             }
                         }
-                        writer
-                            .flush()
-                            .unwrap_or_else(|e| eprintln!("Error flushing: {}", e));
+                        writer.flush().unwrap_or_else(|e| eprintln!("Error flushing: {}", e));
                     }
                     last_mouse_pos = current_pos;
                 }
 
                 thread::sleep(Duration::from_millis(50));
             }
-
+            
             if let Ok(mut status) = status_text.lock() {
                 if events_recorded.load(Ordering::SeqCst) {
                     *status = "Monitoring stopped. Activities were recorded.".to_string();
@@ -182,7 +178,7 @@ struct MonitorApp {
 }
 
 impl MonitorApp {
-    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
         Self {
             monitor: Arc::new(ActivityMonitor::new().unwrap()),
         }
@@ -198,7 +194,7 @@ impl eframe::App for MonitorApp {
             if ui.button("Start Monitoring").clicked() {
                 self.monitor.start_monitoring();
             }
-
+            
             if ui.button("Stop Monitoring").clicked() {
                 self.monitor.stop_monitoring();
             }
@@ -215,8 +211,12 @@ impl eframe::App for MonitorApp {
 }
 
 fn main() -> Result<()> {
-    let mut options = eframe::NativeOptions::default();
-    options.viewport.inner_size = Some(egui::vec2(400.0, 200.0));
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([400.0, 200.0])
+            .with_title("Desktop Activity Monitor"),
+        ..Default::default()
+    };
 
     eframe::run_native(
         "Desktop Activity Monitor",
