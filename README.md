@@ -1,69 +1,48 @@
 # Desktop Activity Monitor
 
-A Rust-based desktop activity monitoring tool that records mouse movements and keyboard actions for AI training purposes.
+A Rust application that monitors desktop activity (mouse movements and keyboard inputs) for AI training data collection.
 
 ## Features
 
-- GUI window with simple start/stop controls
 - Task-based activity monitoring
-- Records mouse movements with coordinates
-- Captures keyboard inputs
-- Saves sessions to CSV files
+- Mouse movement and keyboard input tracking
 - Real-time status updates
-- Minimal system resource usage
+- CSV data storage
 
-## Data Collection
+## Data Files
 
-The application collects data in two files:
+- `monitoring_sessions.csv`: Complete sessions with all actions
 
-1. `monitoring_sessions.csv`: Contains complete sessions with all actions
-2. `latest_session_details.csv`: Contains detailed events from the current/last session
+  ```csv
+  session_id,task_name,start_time,end_time,actions
+  20240120_123456,Writing Email,2024-01-20T12:34:56Z,2024-01-20T12:35:56Z,{mouse,2024-01-20T12:34:57Z,(100,200)};{key,2024-01-20T12:34:58Z,"A+B+C"}
+  ```
 
-### Session Data Format
-
-The `monitoring_sessions.csv` file contains the following columns:
-
-- session_id: Unique identifier for each monitoring session (timestamp-based)
-- task_name: Name of the task being monitored
-- start_time: ISO 8601 formatted start time
-- end_time: ISO 8601 formatted end time
-- actions: Semicolon-separated list of actions in chronological order, where each action is formatted as:
-  - Mouse moves: `{mouse,timestamp,(x,y)}`
-  - Key presses: `{key,timestamp,keys_pressed}`
-
-Example:
-
-```csv
-session_id,task_name,start_time,end_time,actions
-20240120_123456,Writing Email,2024-01-20T12:34:56Z,2024-01-20T12:35:56Z,{mouse,2024-01-20T12:34:57Z,(100,200)};{key,2024-01-20T12:34:58Z,"A+B+C"}
-```
-
-### Detailed Event Data
-
-The `latest_session_details.csv` file contains detailed events from the current/last session with columns:
-
-- timestamp: ISO 8601 formatted timestamp
-- task_name: Name of the task being monitored
-- event_type: Type of event (keyboard/mouse_move)
-- details: Specific details about the event
-- mouse_x: Current X coordinate of the mouse
-- mouse_y: Current Y coordinate of the mouse
+- `latest_session_details.csv`: Detailed events from current session
 
 ## Usage
 
-1. Run the application using `cargo run`
-2. A window titled "Desktop Activity Monitor" will appear
-3. Enter a task name in the input field (required)
-4. Click "Start Monitoring" to begin recording (only enabled after entering task name)
-5. Click "Stop Monitoring" to end the session
-6. Close the window to exit the application
-
-The application will show real-time status updates about mouse movements and keyboard actions in the window, including the current task being monitored.
+1. Run `cargo run`
+2. Enter task name
+3. Click "Start Monitoring"
+4. Perform your task
+5. Click "Stop Monitoring"
 
 ## Requirements
 
-- Rust 1.56 or higher
-- Windows 10 or higher
+- Rust 1.56+
+- Windows 10+
+
+## Project Structure
+
+```
+src/
+├── main.rs     # Application entry point
+├── lib.rs      # Library exports
+├── types.rs    # Data structures
+├── monitor.rs  # Activity monitoring
+└── gui.rs      # User interface
+```
 
 ## Building
 
