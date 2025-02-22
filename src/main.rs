@@ -37,6 +37,7 @@ impl Action {
 #[derive(Debug)]
 struct Session {
     session_id: String,
+    task_name: String,
     start_time: String,
     end_time: Option<String>,
     actions: Vec<Action>,
@@ -53,6 +54,7 @@ impl Session {
 
         vec![
             self.session_id.clone(),
+            self.task_name.clone(),
             self.start_time.clone(),
             self.end_time.clone().unwrap_or_default(),
             actions_str,
@@ -63,6 +65,7 @@ impl Session {
 #[derive(Debug, Serialize)]
 struct DetailedEvent {
     timestamp: String,
+    task_name: String,
     event_type: String,
     details: String,
     mouse_x: i32,
@@ -79,6 +82,7 @@ struct ActivityMonitor {
     last_keys: Vec<device_query::Keycode>,
     last_mouse_pos: (i32, i32),
     current_session: Session,
+    task_name: String,
 }
 
 impl ActivityMonitor {
@@ -102,7 +106,8 @@ impl ActivityMonitor {
 
         let session_file = OpenOptions::new()
             .create(true)
-            .append(true)
+            .write(true)
+            .truncate(true)
             .open("monitoring_sessions.csv")?;
 
         let detailed_file = OpenOptions::new()
@@ -114,28 +119,44 @@ impl ActivityMonitor {
         let mut session_writer = Writer::from_writer(session_file);
         let detailed_writer = Writer::from_writer(detailed_file);
 
-        // Always write header for sessions file
-        session_writer.write_record(&["session_id", "start_time", "end_time", "actions"])?;
+        // Write headers for both files
+        session_writer.write_record(&[
+            "session_id",
+            "task_name",
+            "start_time",
+            "end_time",
+            "actions",
+        ])?;
         session_writer.flush()?;
 
         println!("✓ Created monitoring_sessions.csv for storing sessions");
         println!("✓ Created latest_session_details.csv for detailed events");
+
+        // Create a new session file for appending after headers are written
+        let session_file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("monitoring_sessions.csv")?;
+
+        let session_writer = Writer::from_writer(session_file);
 
         Ok(Self {
             is_monitoring: AtomicBool::new(false),
             session_writer,
             detailed_writer,
             events_recorded: AtomicBool::new(false),
-            status_text: String::from("Ready to start monitoring"),
+            status_text: String::from("Enter task name to start monitoring"),
             device_state: DeviceState::new(),
             last_keys: Vec::new(),
             last_mouse_pos: (0, 0),
             current_session: Session {
                 session_id: Local::now().format("%Y%m%d_%H%M%S").to_string(),
+                task_name: String::new(),
                 start_time: Local::now().to_rfc3339(),
                 end_time: None,
                 actions: Vec::new(),
             },
+            task_name: String::new(),
         })
     }
 
@@ -145,9 +166,15 @@ impl ActivityMonitor {
             return;
         }
 
+        if self.task_name.trim().is_empty() {
+            self.status_text = "Please enter a task name first".to_string();
+            return;
+        }
+
         // Start new session
         self.current_session = Session {
             session_id: Local::now().format("%Y%m%d_%H%M%S").to_string(),
+            task_name: self.task_name.clone(),
             start_time: Local::now().to_rfc3339(),
             end_time: None,
             actions: Vec::new(),
@@ -162,7 +189,7 @@ impl ActivityMonitor {
             .unwrap();
         self.detailed_writer = Writer::from_writer(detailed_file);
 
-        self.status_text = "Started monitoring...".to_string();
+        self.status_text = format!("Started monitoring task: {}", self.task_name);
         self.is_monitoring.store(true, Ordering::SeqCst);
     }
 
@@ -178,11 +205,21 @@ impl ActivityMonitor {
         // Save the current session
         self.current_session.end_time = Some(Local::now().to_rfc3339());
 
-        // Write session to CSV
-        if let Err(e) = self
-            .session_writer
-            .write_record(&self.current_session.to_csv_record())
-        {
+        // Write session to CSV with explicit fields to ensure order
+        let record = vec![
+            self.current_session.session_id.clone(),
+            self.current_session.task_name.clone(),
+            self.current_session.start_time.clone(),
+            self.current_session.end_time.clone().unwrap_or_default(),
+            self.current_session
+                .actions
+                .iter()
+                .map(|action| action.to_csv_string())
+                .collect::<Vec<_>>()
+                .join(";"),
+        ];
+
+        if let Err(e) = self.session_writer.write_record(&record) {
             self.status_text = format!("Error saving session: {}", e);
         }
         if let Err(e) = self.session_writer.flush() {
@@ -190,9 +227,15 @@ impl ActivityMonitor {
         }
 
         if self.events_recorded.load(Ordering::SeqCst) {
-            self.status_text = "Monitoring stopped. Activities were recorded.".to_string();
+            self.status_text = format!(
+                "Monitoring stopped for task: {}. Activities were recorded.",
+                self.task_name
+            );
         } else {
-            self.status_text = "Monitoring stopped. No activities were recorded.".to_string();
+            self.status_text = format!(
+                "Monitoring stopped for task: {}. No activities were recorded.",
+                self.task_name
+            );
         }
     }
 
@@ -218,6 +261,7 @@ impl ActivityMonitor {
             // Add to detailed log
             let detailed_event = DetailedEvent {
                 timestamp,
+                task_name: self.task_name.clone(),
                 event_type: "keyboard".to_string(),
                 details: format!("{:?}", keys_str),
                 mouse_x: mouse.coords.0,
@@ -228,7 +272,7 @@ impl ActivityMonitor {
                 self.status_text = format!("Error: {}", e);
             } else {
                 self.events_recorded.store(true, Ordering::SeqCst);
-                self.status_text = format!("Keyboard: {:?}", keys_str);
+                self.status_text = format!("Task: {} - Keyboard: {:?}", self.task_name, keys_str);
             }
             self.detailed_writer
                 .flush()
@@ -252,6 +296,7 @@ impl ActivityMonitor {
             // Add to detailed log
             let detailed_event = DetailedEvent {
                 timestamp,
+                task_name: self.task_name.clone(),
                 event_type: "mouse_move".to_string(),
                 details: format!("Moved to {:?}", current_pos),
                 mouse_x: current_pos.0,
@@ -262,7 +307,10 @@ impl ActivityMonitor {
                 self.status_text = format!("Error: {}", e);
             } else {
                 self.events_recorded.store(true, Ordering::SeqCst);
-                self.status_text = format!("Mouse: ({}, {})", current_pos.0, current_pos.1);
+                self.status_text = format!(
+                    "Task: {} - Mouse: ({}, {})",
+                    self.task_name, current_pos.0, current_pos.1
+                );
             }
             self.detailed_writer
                 .flush()
@@ -298,8 +346,25 @@ impl eframe::App for MonitorApp {
             ui.heading("Desktop Activity Monitor");
             ui.add_space(20.0);
 
-            if ui.button("Start Monitoring").clicked() {
-                self.monitor.start_monitoring();
+            // Task name input field
+            ui.horizontal(|ui| {
+                ui.label("Task Name: ");
+                if !self.monitor.is_monitoring.load(Ordering::SeqCst) {
+                    ui.text_edit_singleline(&mut self.monitor.task_name);
+                } else {
+                    ui.label(&self.monitor.task_name);
+                }
+            });
+
+            ui.add_space(10.0);
+
+            // Only enable Start button if task name is not empty
+            if !self.monitor.task_name.trim().is_empty() {
+                if ui.button("Start Monitoring").clicked() {
+                    self.monitor.start_monitoring();
+                }
+            } else {
+                ui.add_enabled(false, egui::Button::new("Start Monitoring"));
             }
 
             if ui.button("Stop Monitoring").clicked() {
