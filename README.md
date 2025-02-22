@@ -5,6 +5,7 @@ A Rust-based desktop activity monitoring tool that records mouse movements and k
 ## Features
 
 - GUI window with simple start/stop controls
+- Task-based activity monitoring
 - Records mouse movements with coordinates
 - Captures keyboard inputs
 - Saves sessions to CSV files
@@ -23,6 +24,7 @@ The application collects data in two files:
 The `monitoring_sessions.csv` file contains the following columns:
 
 - session_id: Unique identifier for each monitoring session (timestamp-based)
+- task_name: Name of the task being monitored
 - start_time: ISO 8601 formatted start time
 - end_time: ISO 8601 formatted end time
 - actions: Semicolon-separated list of actions in chronological order, where each action is formatted as:
@@ -32,8 +34,8 @@ The `monitoring_sessions.csv` file contains the following columns:
 Example:
 
 ```csv
-session_id,start_time,end_time,actions
-20240120_123456,2024-01-20T12:34:56Z,2024-01-20T12:35:56Z,{mouse,2024-01-20T12:34:57Z,(100,200)};{key,2024-01-20T12:34:58Z,"A+B+C"}
+session_id,task_name,start_time,end_time,actions
+20240120_123456,Writing Email,2024-01-20T12:34:56Z,2024-01-20T12:35:56Z,{mouse,2024-01-20T12:34:57Z,(100,200)};{key,2024-01-20T12:34:58Z,"A+B+C"}
 ```
 
 ### Detailed Event Data
@@ -41,6 +43,7 @@ session_id,start_time,end_time,actions
 The `latest_session_details.csv` file contains detailed events from the current/last session with columns:
 
 - timestamp: ISO 8601 formatted timestamp
+- task_name: Name of the task being monitored
 - event_type: Type of event (keyboard/mouse_move)
 - details: Specific details about the event
 - mouse_x: Current X coordinate of the mouse
@@ -50,11 +53,12 @@ The `latest_session_details.csv` file contains detailed events from the current/
 
 1. Run the application using `cargo run`
 2. A window titled "Desktop Activity Monitor" will appear
-3. Click "Start Monitoring" to begin recording
-4. Click "Stop Monitoring" to end the session
-5. Close the window to exit the application
+3. Enter a task name in the input field (required)
+4. Click "Start Monitoring" to begin recording (only enabled after entering task name)
+5. Click "Stop Monitoring" to end the session
+6. Close the window to exit the application
 
-The application will show real-time status updates about mouse movements and keyboard actions in the window.
+The application will show real-time status updates about mouse movements and keyboard actions in the window, including the current task being monitored.
 
 ## Requirements
 
