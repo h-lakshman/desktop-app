@@ -50,7 +50,7 @@ src/
 cargo build --release
 ```
 
-The compiled binary will be in `target/release/desk-monitor.exe`
+The compiled binary will be in `target/release/desk-monitor.exe`.
 
 ## Dependencies
 

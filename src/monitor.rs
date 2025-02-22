@@ -26,7 +26,6 @@ impl ActivityMonitor {
         println!("=== Desktop Activity Monitor ===");
         println!("Initializing...");
 
-        // Test if we can get device state
         let test_device = DeviceState::new();
         let test_mouse = test_device.get_mouse();
         println!(
@@ -55,7 +54,6 @@ impl ActivityMonitor {
         let mut session_writer = Writer::from_writer(session_file);
         let detailed_writer = Writer::from_writer(detailed_file);
 
-        // Write headers for both files
         session_writer.write_record(&[
             "session_id",
             "task_name",
@@ -68,7 +66,6 @@ impl ActivityMonitor {
         println!("✓ Created monitoring_sessions.csv for storing sessions");
         println!("✓ Created latest_session_details.csv for detailed events");
 
-        // Create a new session file for appending after headers are written
         let session_file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -107,7 +104,6 @@ impl ActivityMonitor {
             return;
         }
 
-        // Start new session
         self.current_session = Session {
             session_id: Local::now().format("%Y%m%d_%H%M%S").to_string(),
             task_name: self.task_name.clone(),
@@ -116,7 +112,6 @@ impl ActivityMonitor {
             actions: Vec::new(),
         };
 
-        // Clear the detailed log file by creating a new writer
         let detailed_file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -138,10 +133,8 @@ impl ActivityMonitor {
         self.status_text = "Stopping monitoring...".to_string();
         self.is_monitoring.store(false, Ordering::SeqCst);
 
-        // Save the current session
         self.current_session.end_time = Some(Local::now().to_rfc3339());
 
-        // Write session to CSV with explicit fields to ensure order
         let record = vec![
             self.current_session.session_id.clone(),
             self.current_session.task_name.clone(),
@@ -187,14 +180,12 @@ impl ActivityMonitor {
             let keys_str: Vec<String> = keys.iter().map(|k| format!("{:?}", k)).collect();
             let mouse: MouseState = self.device_state.get_mouse();
 
-            // Add to current session
             let action = Action::KeyPress {
                 timestamp: timestamp.clone(),
                 keys: keys_str.clone(),
             };
             self.current_session.actions.push(action);
 
-            // Add to detailed log
             let detailed_event = DetailedEvent {
                 timestamp,
                 task_name: self.task_name.clone(),
@@ -222,14 +213,12 @@ impl ActivityMonitor {
         if current_pos != self.last_mouse_pos {
             let timestamp = Local::now().to_rfc3339();
 
-            // Add to current session
             let action = Action::MouseMove {
                 timestamp: timestamp.clone(),
                 coords: current_pos,
             };
             self.current_session.actions.push(action);
 
-            // Add to detailed log
             let detailed_event = DetailedEvent {
                 timestamp,
                 task_name: self.task_name.clone(),

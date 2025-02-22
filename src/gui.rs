@@ -18,7 +18,6 @@ impl eframe::App for MonitorApp {
         // Update monitor state
         self.monitor.update();
 
-        // Request continuous updates when monitoring
         if self
             .monitor
             .is_monitoring
@@ -31,7 +30,6 @@ impl eframe::App for MonitorApp {
             ui.heading("Desktop Activity Monitor");
             ui.add_space(20.0);
 
-            // Task name input field
             ui.horizontal(|ui| {
                 ui.label("Task Name: ");
                 if !self
@@ -47,7 +45,6 @@ impl eframe::App for MonitorApp {
 
             ui.add_space(10.0);
 
-            // Only enable Start button if task name is not empty
             if !self.monitor.task_name.trim().is_empty() {
                 if ui.button("Start Monitoring").clicked() {
                     self.monitor.start_monitoring();
